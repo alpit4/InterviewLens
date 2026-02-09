@@ -1,0 +1,59 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String      @id @default(cuid())
+  clerkId    String      @unique
+  email      String      @unique
+  name       String?
+  createdAt  DateTime    @default(now())
+  interviews Interview[]
+}
+
+model Interview {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // File info
+  fileName        String
+  fileUrl         String
+  fileType        String   // "audio" or "video"
+  duration        Int?     // in seconds
+  
+  // Processing
+  transcript      String?  @db.Text
+  analysis        Json?
+  
+  // Status tracking
+  status          String   @default("uploaded") // uploaded, transcribing, transcribed, analyzing, completed, failed
+  
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Future phases (not implemented yet)
+  resumeUrl       String?  // Phase 2
+  aiDetection     Json?    // Phase 3
+  
+  @@index([userId])
+  @@index([status])
+}
+
+// Future: Phase 4 - Mock Interview Questions
+model MockQuestion {
+  id          String   @id @default(cuid())
+  category    String   // "technical", "behavioral", "system-design"
+  difficulty  String   // "easy", "medium", "hard"
+  question    String   @db.Text
+  hints       Json?
+  createdAt   DateTime @default(now())
+}
