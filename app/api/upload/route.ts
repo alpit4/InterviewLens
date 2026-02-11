@@ -19,14 +19,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Convert file to buffer for Cloudinary
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Upload to Cloudinary
     const result = await uploadToCloudinary(buffer, 'interviews') as { secure_url: string, duration?: number };
 
-    // Ensure the user exists in our local database
     let user = await prisma.user.findUnique({
       where: { clerkId: userId }
     });

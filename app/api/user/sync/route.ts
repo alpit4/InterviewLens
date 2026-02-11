@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function POST() {
   try {
     const { userId } = await auth();
     const userDetails = await currentUser();
@@ -11,8 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Secondary safety sync (primary sync is in Navbar trigger)
-    const syncedUser = await prisma.user.upsert({
+    const user = await prisma.user.upsert({
       where: { clerkId: userId },
       update: {
         email: userDetails.emailAddresses[0].emailAddress,
@@ -25,14 +24,9 @@ export async function GET() {
       },
     });
 
-    const interviews = await prisma.interview.findMany({
-      where: { userId: syncedUser.id },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    return NextResponse.json(interviews || []);
-  } catch (error) {
-    console.error('Interviews GET Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: true, user });
+  } catch (error: any) {
+    console.error('User Sync Error:', error);
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }

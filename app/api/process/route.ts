@@ -25,7 +25,6 @@ export async function POST(req: Request) {
       data: { status: 'transcribing' }
     });
 
-    // 1. Download file from Cloudinary to temp loc
     const tempDir = os.tmpdir();
     const inputPath = path.join(tempDir, `input_${interviewId}_${Date.now()}`);
     const outputPath = path.join(tempDir, `output_${interviewId}_${Date.now()}.mp3`);
@@ -44,7 +43,6 @@ export async function POST(req: Request) {
       writer.on('error', (err) => reject(err));
     });
 
-    // 2. Extract Audio if it's a video
     let processPath = inputPath;
     if (interview.fileType === 'video') {
       await new Promise((resolve, reject) => {
@@ -63,13 +61,11 @@ export async function POST(req: Request) {
       data: { status: 'analyzing' }
     });
 
-    // 3. Upload to Gemini File API
     const uploadResult = await fileManager.uploadFile(processPath, {
       mimeType: 'audio/mp3',
       displayName: interview.fileName,
     });
 
-    // 4. Generate Analysis
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent([
       {
@@ -91,7 +87,6 @@ export async function POST(req: Request) {
     
     const analysis = JSON.parse(cleanJson);
 
-    // 5. Update Database
     await prisma.interview.update({
       where: { id: interviewId },
       data: { 
