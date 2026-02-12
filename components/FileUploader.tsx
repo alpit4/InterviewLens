@@ -77,7 +77,7 @@ export default function FileUploader() {
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
-      <Card className="border-2 border-dashed border-muted-foreground/25 bg-muted/50 transition-colors hover:bg-muted/80">
+      <Card className="relative border-2 border-dashed border-muted-foreground/25 bg-muted/50 transition-colors hover:bg-muted/80 overflow-hidden">
         <CardContent className="flex flex-col items-center justify-center space-y-4 p-12 text-center">
           {!file ? (
             <>

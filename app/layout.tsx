@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "InterviewLens - AI Interview Performance Analyzer",
   description:
     "Analyze your interview performance with AI-powered insights and feedback.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
