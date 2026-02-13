@@ -35,24 +35,73 @@ export default function FileUploader() {
 
     try {
       setStatus("uploading");
-      setProgress(10);
+      setProgress(5);
 
-      const formData = new FormData();
-      formData.append("file", file);
+      // 1. Get Signature from our server
+      const signRes = await fetch("/api/upload/sign", { method: "POST" });
+      if (!signRes.ok) throw new Error("Failed to get upload signature");
+      const { signature, timestamp, cloudName, apiKey } = await signRes.json();
 
-      // 1. Upload to Cloudinary & Create DB Entry
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      // 2. Upload directly to Cloudinary
+      const cloudData = new FormData();
+      cloudData.append("file", file);
+      cloudData.append("api_key", apiKey);
+      cloudData.append("timestamp", timestamp);
+      cloudData.append("signature", signature);
+      cloudData.append("folder", "interviews");
+
+      const xhr = new XMLHttpRequest();
+      const cloudUrl = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
+
+      const uploadPromise = new Promise((resolve, reject) => {
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const percent = (event.loaded / event.total) * 100;
+            setProgress(Math.round(percent * 0.8)); // 0-80% for upload
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            reject(new Error("Cloudinary upload failed"));
+          }
+        });
+
+        xhr.addEventListener("error", () =>
+          reject(new Error("Network error during upload")),
+        );
+        xhr.open("POST", cloudUrl);
+        xhr.send(cloudData);
       });
 
-      if (!uploadRes.ok) throw new Error("Failed to upload file");
+      const uploadResult = (await uploadPromise) as {
+        secure_url: string;
+        duration?: number;
+      };
 
-      const { interviewId } = await uploadRes.json();
-      setProgress(40);
+      setProgress(85);
       setStatus("processing");
 
-      // 2. Start AI Processing
+      // 3. Create Record in our DB
+      const dbRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          secure_url: uploadResult.secure_url,
+          fileName: file.name,
+          fileType: file.type.startsWith("video") ? "video" : "audio",
+          duration: uploadResult.duration,
+        }),
+      });
+
+      if (!dbRes.ok) throw new Error("Failed to save recording information");
+      const { interviewId } = (await dbRes.json()) as { interviewId: string };
+
+      setProgress(90);
+
+      // 4. Start AI Processing
       const processRes = await fetch("/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -64,13 +113,15 @@ export default function FileUploader() {
       setProgress(100);
       setStatus("success");
 
-      // 3. Redirect to analysis page
+      // 5. Redirect to analysis page
       setTimeout(() => {
         router.push(`/analysis/${interviewId}`);
       }, 1500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Something went wrong");
+      const message =
+        err instanceof Error ? err.message : "Something went wrong";
+      setError(message);
       setStatus("error");
     }
   };

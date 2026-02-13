@@ -7,6 +7,8 @@ import os from 'os';
 import axios from 'axios';
 import ffmpeg from 'fluent-ffmpeg';
 
+export const maxDuration = 120;
+
 export async function POST(req: Request) {
   try {
     const { interviewId } = await req.json();

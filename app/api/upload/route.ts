@@ -1,7 +1,8 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
-import { uploadToCloudinary } from '@/lib/cloudinary';
 import { NextResponse } from 'next/server';
+
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
@@ -12,17 +13,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
+    const { secure_url, fileName, fileType, duration } = await req.json();
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    if (!secure_url) {
+      return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
     }
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    const result = await uploadToCloudinary(buffer, 'interviews') as { secure_url: string, duration?: number };
 
     let user = await prisma.user.findUnique({
       where: { clerkId: userId }
@@ -41,10 +36,10 @@ export async function POST(req: Request) {
     const interview = await prisma.interview.create({
       data: {
         userId: user.id,
-        fileName: file.name,
-        fileUrl: result.secure_url,
-        fileType: file.type.startsWith('video') ? 'video' : 'audio',
-        duration: result.duration ? Math.round(result.duration) : null,
+        fileName: fileName || 'Recording',
+        fileUrl: secure_url,
+        fileType: fileType || 'audio',
+        duration: duration ? Math.round(duration) : null,
         status: 'uploaded'
       }
     });
